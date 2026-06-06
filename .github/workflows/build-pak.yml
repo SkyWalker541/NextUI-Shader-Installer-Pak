@@ -1,0 +1,33 @@
+name: Build pak zip
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make pak files executable
+        run: |
+          chmod +x "Shader Installer.pak/launch.sh"
+          find "Shader Installer.pak/bin" -type f -exec chmod +x {} +
+
+      - name: Build Shader Installer.pak.zip
+        run: |
+          # zip the *contents* of the pak folder at the archive root
+          ( cd "Shader Installer.pak" && zip -r "$GITHUB_WORKSPACE/Shader Installer.pak.zip" . )
+          # add the store manifest at the archive root
+          zip "Shader Installer.pak.zip" pak.json
+          unzip -l "Shader Installer.pak.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shader-installer-pak
+          path: Shader Installer.pak.zip
+          retention-days: 90
+          if-no-files-found: error

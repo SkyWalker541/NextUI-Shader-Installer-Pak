@@ -1,0 +1,42 @@
+name: Attach pak zip to release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download latest built zip from main
+        run: |
+          RUN_ID=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow build-pak.yml \
+            --branch main \
+            --event push \
+            --status success \
+            --limit 1 \
+            --json databaseId -q '.[0].databaseId')
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful build-pak run found on main. Run the Build pak zip workflow first." >&2
+            exit 1
+          fi
+          gh run download "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --name shader-installer-pak \
+            --dir dist
+
+      - name: Attach zip to release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            "dist/Shader Installer.pak.zip" \
+            --repo "${{ github.repository }}" \
+            --clobber
